@@ -7,6 +7,7 @@ from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 import time
 
+NOMBRE_ARCHIVO_LOG = 'logs_archivos_movidos.txt'
 ruta_base = r'C:\Users\User\Desktop\ZX Spectrum\asmJon - copia'
 
 class ManejadorEventos(FileSystemEventHandler):
@@ -14,6 +15,16 @@ class ManejadorEventos(FileSystemEventHandler):
         if not event.is_directory:
             print(f"Nuevo archivo detectado: {event.src_path}")
             organizar_archivos(ruta_base)
+
+def esperar_archivo_libre(ruta_archivo, intentos=10, espera=0.5):
+    for _ in range(intentos):
+        try:
+            with open(ruta_archivo, "rb"):
+                return True
+        except (PermissionError, OSError):
+            time.sleep(espera)
+    
+    return False
 
 def organizar_archivos(ruta_base):
     """Función para organizar los archivos por extensión"""
@@ -23,7 +34,11 @@ def organizar_archivos(ruta_base):
         archivo_con_ruta_completa = os.path.join(ruta_base, archivo_o_carpeta)
 
         # Solo procesamos archivos (ignoramos carpetas)
-        if os.path.isfile(archivo_con_ruta_completa):
+        if os.path.isfile(archivo_con_ruta_completa) and archivo_o_carpeta != NOMBRE_ARCHIVO_LOG:
+            # Mirar si 'archivo_libre':
+            if not esperar_archivo_libre(archivo_con_ruta_completa):
+                print(f"No se pudo acceder a {archivo_o_carpeta} porque esta siendo utilizado...")
+            
             # Separamos el nombre del archivo y la extensión
             nombre, extension = os.path.splitext(archivo_o_carpeta)
             extension = extension.lower().strip('.')  # Quitamos el punto y ponemos en minúsculas
@@ -47,7 +62,7 @@ def organizar_archivos(ruta_base):
                 shutil.move(archivo_con_ruta_completa, ruta_final_total)
 
                 # Creamos archivo .log:
-                with open(os.path.join(ruta_base, "logs_archivos_movidos.txt"), "a", encoding="utf-8") as log:
+                with open(os.path.join(ruta_base, NOMBRE_ARCHIVO_LOG), "a", encoding="utf-8") as log:
                     log.write(f"{datetime.now().strftime('%Y-%m-%d %H: %M: %S')} movido: {archivo_o_carpeta} --> {ruta_final_total}\n")
 
     messagebox.showinfo("Éxito", "¡Archivos organizados con éxito!")
